@@ -5,8 +5,10 @@ for work, Discord is answered, and unattended jobs run in git worktrees you
 merge when you are happy. You attach to it when you want to watch or take
 over.
 
-The NAS builds nothing. GitHub Actions builds the image, tests it, and
-publishes it to `ghcr.io/aaron-philipp/revere`; Container Manager pulls it.
+The NAS builds nothing. GitHub Actions builds the image, runs the test
+suite inside it, starts the daemon and waits for it to answer, and only
+then publishes to `ghcr.io/aaron-philipp/revere`. The package is public,
+so Container Manager pulls it with no registry credentials.
 
 - [What you need](#what-you-need)
 - [Which Emacs](#which-emacs)
