@@ -983,6 +983,26 @@ Each reply is (TEXT CALLS USAGE)."
             (should-not (string-match-p (substring revere-system-prompt 0 20) prompt)))
         (delete-file (revere-prompt-file))))))
 
+(ert-deftest revere-prompt/config-directory-moves-instructions-and-skills ()
+  "Standing instructions and your own skills follow `revere-config-directory'."
+  ;; Unset, everything stays with the rest of the state.
+  (let ((revere-config-directory nil))
+    (should (equal (revere-config-directory)
+                   (file-name-as-directory (expand-file-name revere-directory))))
+    (should (equal (revere-prompt-file)
+                   (expand-file-name "prompt.md" revere-directory))))
+  ;; Set, the config directory wins, as it does for the container's
+  ;; separate volumes.
+  (revere-tests--with-dir config
+    (let ((revere-config-directory config)
+          (revere-skill-dirs nil))
+      (should (equal (revere-prompt-file) (expand-file-name "prompt.md" config)))
+      (should (equal (revere-skills-new-directory) (expand-file-name "skills" config)))
+      (revere-tests--write config "skills/greeting/SKILL.md"
+                           "---\nname: greeting\ndescription: say hello\n---\n\nSay hello.\n")
+      (should (member "greeting"
+                      (mapcar (lambda (s) (plist-get s :name)) (revere-skills-index)))))))
+
 (ert-deftest revere-prompt/job-starts-with-the-assembled-prompt ()
   "A job's first message is the assembled system prompt, not the bare default."
   (revere-tests--with-dir dir

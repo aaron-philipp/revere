@@ -43,7 +43,7 @@
 
 (defun revere-prompt-file ()
   "Path of the editable standing instructions."
-  (expand-file-name "prompt.md" revere-directory))
+  (expand-file-name "prompt.md" (revere-config-directory)))
 
 (defun revere-prompt-standing (&optional job)
   "The standing instructions for JOB.

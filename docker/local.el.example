@@ -1,0 +1,50 @@
+;;; local.el --- Settings for this Revere, on the config volume -*- lexical-binding: t; -*-
+
+;;; Commentary:
+
+;; Copy to the config volume as local.el.  It is loaded after everything
+;; the environment sets and before the daemon starts, so it wins.  Reload
+;; it without restarting the container:
+;;
+;;   docker exec revere emacsclient -s /run/revere/revere \
+;;     -e '(load "/config/local.el")'
+
+;;; Code:
+
+;;;; What it may do without asking
+;;
+;; go-ahead: do it.  check: wait for me in the approvals list.  never: no.
+;; Unattended work with nobody to ask stalls on check, so decide here what
+;; the daemon is allowed to do alone.
+
+(setopt revere-rules
+        '((read . go-ahead) (glob . go-ahead) (grep . go-ahead)
+          (edit . go-ahead) (write . go-ahead)
+          (problems . go-ahead) (describe . go-ahead) (apropos . go-ahead)
+          (skill . go-ahead) (memory-search . go-ahead) (memory-add . go-ahead)
+          (board-add . go-ahead) (logbook-search . go-ahead)
+          (fetch . go-ahead) (search . go-ahead)
+          (plan . go-ahead) (delegate . go-ahead)
+          (shell . check) (eval . check) (define-tool . check)
+          (t . never)))
+
+;;;; MCP servers
+;;
+;; The command is looked up on PATH, which includes /servers/bin and
+;; /servers/npm/bin.  With node in the image, npx caches its downloads on
+;; the servers volume, so this survives a restart without fetching again.
+
+;; (setopt revere-mcp-servers
+;;         '(("fs" :command "npx"
+;;                 :args ("-y" "@modelcontextprotocol/server-filesystem" "/work"))
+;;           ("mine" :command "/servers/bin/my-server")))
+
+;; What MCP tools may do, unless revere-rules names one.
+;; (setopt revere-mcp-rule 'check)
+
+;;;; Routines
+;;
+;; Routines are Org headings with a repeater in routines.org on the data
+;; volume; edit that file over the share rather than here.
+
+;;; local.el ends here

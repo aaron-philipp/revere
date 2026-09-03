@@ -93,6 +93,18 @@ default.  RULE is `go-ahead', `check' (check with me first), or `never'."
   "Where Revere keeps its logbook, routines, check-in notes and worktrees."
   :type 'directory)
 
+(defcustom revere-config-directory nil
+  "Where your standing instructions and your own skills live.
+Nil means keep them with everything else, in `revere-directory'.  Set it
+when configuration and state belong in different places, as they do when
+Revere runs in a container with one folder mounted for each."
+  :type '(choice (const :tag "Same as revere-directory" nil) directory))
+
+(defun revere-config-directory ()
+  "The directory holding standing instructions and your own skills."
+  (file-name-as-directory
+   (expand-file-name (or revere-config-directory revere-directory))))
+
 (defcustom revere-routine-tick 60
   "Seconds between looks at the routines file for anything due."
   :type 'integer)

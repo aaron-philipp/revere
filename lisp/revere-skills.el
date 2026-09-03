@@ -24,10 +24,17 @@
 (require 'revere-tools)
 (require 'revere-loop)
 
-(defcustom revere-skill-dirs (list (expand-file-name "skills" revere-directory))
-  "Directories holding skill folders.  Revere's own skills folder is added."
+(defcustom revere-skill-dirs nil
+  "Directories holding skill folders.  Revere's own skills folder is added.
+Empty means the skills folder in `revere-config-directory', which is
+where `revere-skill-new' writes."
   :type '(repeat directory)
   :group 'revere)
+
+(defun revere-skills-new-directory ()
+  "The directory your own skills are written to."
+  (or (car revere-skill-dirs)
+      (expand-file-name "skills" (revere-config-directory))))
 
 (defvar revere-skills--loaded nil
   "Skill directories whose skill.el has been loaded.")
@@ -68,9 +75,10 @@
 
 (defun revere-skills-dirs ()
   "Every directory to look in, bundled first."
-  (cl-remove-duplicates
-   (cl-remove-if-not #'file-directory-p (cons revere-skills--bundled revere-skill-dirs))
-   :test #'equal))
+  (let ((yours (or revere-skill-dirs (list (revere-skills-new-directory)))))
+    (cl-remove-duplicates
+     (cl-remove-if-not #'file-directory-p (cons revere-skills--bundled yours))
+     :test #'equal)))
 
 (defun revere-skills-index ()
   "Every skill as a plist (:name :description :dir :file), later dirs winning."
@@ -133,7 +141,7 @@ Scripts and references it mentions live in the folder it names."
     (with-help-window "*Revere skills*"
       (if (null skills)
           (princ (format "No skills yet.  M-x revere-skill-new writes one under %s\n"
-                         (car revere-skill-dirs)))
+                         (revere-skills-new-directory)))
         (dolist (skill skills)
           (princ (format "%-24s %s\n    %s\n" (plist-get skill :name)
                          (plist-get skill :description) (plist-get skill :dir))))))))
@@ -142,7 +150,7 @@ Scripts and references it mentions live in the folder it names."
 (defun revere-skill-new (name description)
   "Write a new skill NAME with DESCRIPTION and open it."
   (interactive "sSkill name: \nsOne-line description: ")
-  (let* ((dir (file-name-as-directory (expand-file-name name (car revere-skill-dirs))))
+  (let* ((dir (file-name-as-directory (expand-file-name name (revere-skills-new-directory))))
          (file (expand-file-name "SKILL.md" dir)))
     (when (file-exists-p file)
       (user-error "There is already a skill called %s" name))

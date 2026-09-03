@@ -1,0 +1,88 @@
+# Revere as a Synology Container Manager project.
+#
+# Container Manager: Project > Create, point it at the folder holding this
+# file, and it builds and starts the daemon.  Read docker/README.md first;
+# the lines you must change are marked EDIT.
+services:
+  revere:
+    container_name: revere
+    # Built from the repository above this folder.  To run a prebuilt image
+    # instead, comment the build block out and uncomment image.
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        # MCP and ACP servers are usually node or python programs.  Turn on
+        # what yours need, or leave both off and mount servers that bring
+        # their own runtime.
+        WITH_NODE: "false"
+        WITH_PYTHON: "false"
+    # image: revere:latest
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+    environment:
+      # EDIT: your NAS timezone, or routines fire at the wrong hour.
+      TZ: America/Chicago
+
+      # EDIT: the DSM user that owns the shared folder below.  The first
+      # DSM account is usually 1026 and the users group is 100; check over
+      # SSH with `id yourname`.
+      PUID: "1026"
+      PGID: "100"
+
+      # EDIT: your OpenAI-compatible endpoint, reachable from the NAS.
+      REVERE_BASE_URL: "http://litellm.lan:4000"
+      REVERE_MODEL: "qwen-3.8"
+
+      # Who the unattended commits come from.
+      GIT_AUTHOR_NAME: "Revere"
+      GIT_AUTHOR_EMAIL: "revere@localhost"
+
+      # Discord: put the token in config/authinfo, not here.
+      # REVERE_DISCORD_CHANNELS: "123456789012345678"
+      # REVERE_DISCORD_USERS: "987654321098765432"
+      # REVERE_DISCORD: "off"
+
+      # Let another Emacs on the LAN drive this daemon.  Read the warning
+      # in docker/README.md before turning this on.
+      # REVERE_SERVER_TCP: "1"
+      # REVERE_SERVER_PORT: "9999"
+
+    volumes:
+      # EDIT the /volume1 paths to your shared folder.  Making it a DSM
+      # shared folder is the point: everything below is then reachable over
+      # SMB, so you edit routines and instructions from your desk.
+      #
+      # What you set: local.el, authinfo, prompt.md, your own skills.
+      - /volume1/revere/config:/config
+      # What it writes: logbook, routines, check-in, board, memory, and the
+      # worktrees of unattended jobs.  This is the one to back up.
+      - /volume1/revere/data:/data
+      # MCP and ACP servers that are not in the image, plus their caches.
+      - /volume1/revere/servers:/servers
+      # EDIT: the projects it works on.  Append :ro to try it out
+      # read-only before you let it edit anything.
+      - /volume1/code:/work
+
+    # ports:
+    #   - "9999:9999"   # only with REVERE_SERVER_TCP
+
+# A share on another machine, rather than a folder on this NAS.  Replace
+# the four bind mounts above with named volumes like these, and set uid and
+# gid to the same numbers as PUID and PGID: ownership on an SMB mount comes
+# from these options, and nothing in the container can chown it afterwards.
+#
+# volumes:
+#   revere-data:
+#     driver: local
+#     driver_opts:
+#       type: cifs
+#       o: "username=revere,password=SECRET,uid=1026,gid=100,file_mode=0664,dir_mode=0775,vers=3.0"
+#       device: "//fileserver/revere/data"
+#
+# Unattended jobs run git in worktrees under the data volume, and git over
+# SMB is slow and locks badly.  With data on a remote share, either keep
+# that volume local and share only config, or set
+# REVERE_UNATTENDED_MODE: buffers and review in the chat instead.

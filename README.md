@@ -47,6 +47,7 @@ ediff, Org, TRAMP, the server. The reasoning behind it is in
   - [The check-in](#the-check-in)
   - [Worktrees](#worktrees)
   - [The daemon](#the-daemon)
+  - [In a container](#in-a-container)
   - [Discord](#discord)
 - [Extending Revere](#extending-revere)
   - [The system prompt](#the-system-prompt)
@@ -343,6 +344,34 @@ list if anything is waiting, else on the chat. From your daily Emacs,
 `revere-client-status` and `revere-client-frame`, which talk to the daemon
 over `server-eval-at`.
 
+### In a container
+
+`docker/` holds a Dockerfile and a compose file that run the daemon as a
+service, with Emacs, git, ripgrep and curl in the image. It is written for
+Synology Container Manager, and it is ordinary Docker everywhere else.
+[docker/README.md](docker/README.md) is the walkthrough.
+
+Four volumes, so the folder you edit is not the folder that churns:
+
+| Mount      | Holds                                                                 |
+|------------|-----------------------------------------------------------------------|
+| `/config`  | what you set: `local.el`, `authinfo`, `prompt.md`, your own skills     |
+| `/data`    | what it writes: logbook, routines, check-in, board, memory, worktrees  |
+| `/servers` | MCP and ACP servers not in the image, and their package caches         |
+| `/work`    | the projects it works on                                              |
+
+Point them at a shared folder and everything it keeps is on your network:
+you read the logbook and edit routines over SMB while it works. Settings
+come from the environment, so the image holds no addresses or secrets;
+`local.el` on the config volume sets anything the environment cannot, and
+reloads without a restart.
+
+Attach to it the same way as any daemon, from a shell on the host:
+
+```bash
+docker exec -it revere emacsclient -s /run/revere/revere -t
+```
+
 ### Discord
 
 Messages in the channels you name start jobs or continue them; replies,
@@ -502,7 +531,9 @@ command there. Nothing else changes.
 
 ### Files
 
-All under `revere-directory`, `~/.revere/` by default:
+All under `revere-directory`, `~/.revere/` by default. Set
+`revere-config-directory` to keep the first four somewhere else, as the
+container does when configuration and state are separate volumes:
 
 | File            | Holds                                                    |
 |-----------------|----------------------------------------------------------|
@@ -531,7 +562,7 @@ Chat and layout: `revere-chat-input`, `revere-chat-dock`, `revere-chat-side`,
 `revere-chat-window-size`, `revere-follow`, `revere-mascot-frames`,
 `revere-mascot-interval`.
 
-Unattended: `revere-directory`, `revere-routine-tick`,
+Unattended: `revere-directory`, `revere-config-directory`, `revere-routine-tick`,
 `revere-check-in-interval`, `revere-unattended-mode`.
 
 Channels: `revere-discord-token`, `revere-discord-channels`,

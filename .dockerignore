@@ -1,0 +1,14 @@
+.git
+.gitattributes
+.gitignore
+*.elc
+*.eln
+eln-cache/
+test/
+bin/
+contrib/
+docker/data
+docker/config
+docker/servers
+*.md
+!skills/**/*.md
