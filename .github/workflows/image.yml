@@ -87,15 +87,11 @@ jobs:
 
       # Mutual TLS, proven the way it is actually used: a real Emacs
       # running revere-client against the daemon through stunnel.
-      - name: TLS refuses strangers and admits the certificate holder
+      - name: TLS admits the certificate holder and no one else
         run: |
           set -eux
           bash docker/make-certs.sh localhost 127.0.0.1
-          docker run -d --name tls -p 9999:9999 \
-            -e REVERE_SERVER_TCP=1 -e REVERE_TLS=1 \
-            -v "$PWD/certs:/certs:ro" \
-            -v "$PWD/config:/config" \
-            revere:candidate
+          docker run -d --name tls -p 9999:9999             -e REVERE_SERVER_TCP=1 -e REVERE_TLS=1             -v "$PWD/certs:/certs:ro"             -v "$PWD/config:/config"             revere:candidate
           ready=""
           for i in $(seq 1 30); do
             if docker exec tls test -f /config/server/revere 2>/dev/null; then
@@ -105,34 +101,24 @@ jobs:
           done
           if [ -z "$ready" ]; then
             echo "the TLS container never wrote its server file; its log:"
-            docker logs tls || true
-            docker rm -f tls || true
-            exit 1
+            docker logs tls || true; docker rm -f tls || true; exit 1
           fi
-
-          echo "--- a caller with no certificate must be refused"
-          if openssl s_client -connect 127.0.0.1:9999 -CAfile certs/ca.pem \
-               </dev/null >/dev/null 2>&1; then
-            echo "FAIL: the proxy accepted a connection with no client certificate"
-            docker logs tls; docker rm -f tls; exit 1
-          fi
-          echo "refused, as it should be"
-
-          echo "--- openssl with the certificate must get through"
-          if ! openssl s_client -connect 127.0.0.1:9999 -CAfile certs/ca.pem                  -cert certs/client.pem -key certs/client-key.pem                  </dev/null 2>&1 | tee openssl.log | grep -q "Verify return code: 0"; then
-            echo "FAIL: the proxy rejected a valid client certificate"
-            tail -30 openssl.log
-            docker logs tls; docker rm -f tls; exit 1
-          fi
-          echo "openssl got through"
-
-          echo "--- the certificate holder gets an answer"
           sudo chmod -R a+rX config
-          docker run --rm --network host --entrypoint emacs \
-            -v "$PWD/certs:/certs:ro" \
-            -v "$PWD/config:/config:ro" \
-            revere:candidate -Q --batch -L /opt/revere/lisp \
-            --eval '(progn
+
+          echo "--- the proxy must be running, not merely configured"
+          docker exec tls pgrep -f stunnel >/dev/null             || { echo "FAIL: stunnel is not running"; docker logs tls; docker rm -f tls; exit 1; }
+
+          echo "--- and presenting a certificate we trust"
+          if ! openssl s_client -connect 127.0.0.1:9999 -CAfile certs/ca.pem                  -cert certs/client.pem -key certs/client-key.pem                  </dev/null 2>&1 | tee openssl.log | grep -q "Verify return code: 0"; then
+            echo "FAIL: could not verify the daemon against our authority"
+            tail -30 openssl.log; docker logs tls; docker rm -f tls; exit 1
+          fi
+
+          # The real tests are at the application layer.  Under TLS 1.3 a
+          # client with no certificate still sees a clean handshake and is
+          # only rejected afterwards, so the handshake proves nothing.
+          echo "--- the certificate holder gets an answer"
+          docker run --rm --network host --entrypoint emacs             -v "$PWD/certs:/certs:ro" -v "$PWD/config:/config:ro"             revere:candidate -Q --batch -L /opt/revere/lisp             --eval '(progn
                       (require (quote revere-client))
                       (setq revere-client-auth-dir "/config/server/"
                             revere-client-tls t
@@ -142,9 +128,26 @@ jobs:
                             revere-client-certificate
                               (list "/certs/client-key.pem" "/certs/client.pem"))
                       (let ((answer (revere-client-eval (quote (list emacs-version (length revere-job-list))))))
-                        (message "daemon answered over TLS: %S" answer)
-                        (unless (consp answer) (kill-emacs 1))))'             || { echo "FAIL: the Emacs client could not complete the handshake";                  docker logs tls; docker rm -f tls; exit 1; }
-          docker logs tls
+                        (message "answered over TLS: %S" answer)
+                        (unless (consp answer) (kill-emacs 1))))'             || { echo "FAIL: the certificate holder was not served";                  docker logs tls; docker rm -f tls; exit 1; }
+
+          echo "--- without a certificate, nothing"
+          docker run --rm --network host --entrypoint emacs             -v "$PWD/certs:/certs:ro" -v "$PWD/config:/config:ro"             revere:candidate -Q --batch -L /opt/revere/lisp             --eval '(progn
+                      (require (quote revere-client))
+                      (setq revere-client-auth-dir "/config/server/"
+                            revere-client-tls t
+                            revere-client-host "127.0.0.1"
+                            revere-client-port 9999
+                            revere-client-ca "/certs/ca.pem"
+                            revere-client-certificate nil
+                            revere-client-timeout 10)
+                      (condition-case nil
+                          (progn (revere-client-eval (quote (length revere-job-list)))
+                                 (message "FAIL: served a client with no certificate")
+                                 (kill-emacs 1))
+                        (error (message "refused, as it should be"))))'             || { echo "FAIL: a client with no certificate got through";                  docker logs tls; docker rm -f tls; exit 1; }
+
+          docker logs tls | tail -20
           docker rm -f tls
 
       - uses: docker/login-action@v3
