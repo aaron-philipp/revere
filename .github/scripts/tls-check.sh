@@ -50,7 +50,7 @@ run_client() {
 }
 
 echo "== certificates"
-bash docker/make-certs.sh localhost 127.0.0.1
+bash client/make-certs.sh localhost 127.0.0.1
 
 echo "== the daemon, behind TLS"
 docker run -d --name tls -p 9999:9999 \
@@ -113,7 +113,7 @@ echo "all six were served, each its own answer"
 # to copy, with its paths pointed at the test certificates.
 echo "== emacsclient reaches the daemon through a client-side proxy"
 sed -e "s#/home/you/revere#/certs#g" -e "s#nas.lan#127.0.0.1#" \
-  docker/client-stunnel.conf > client.conf
+  client/stunnel.conf > client.conf
 docker run -d --name clientproxy --network host \
   -v "$here/certs:/certs:ro" -v "$here/client.conf:/tmp/client.conf:ro" \
   --entrypoint stunnel "$IMAGE" /tmp/client.conf >/dev/null

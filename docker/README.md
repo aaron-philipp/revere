@@ -179,124 +179,22 @@ Container Manager's own Terminal tab on the container works too: create a
 
 ## Reaching it from your own Emacs
 
-Emacs's own authentication is a 64-character key in a file, sent in the
-clear, granting whoever presents it arbitrary Lisp. That is a shell on
-your NAS behind a plaintext password, so the daemon does not hold the
-published port. Mutual TLS does.
+That is the other machine's half, and it lives in
+[client/README.md](../client/README.md): what to install there, which
+certificate files go where, and the two ways to open a frame on this
+daemon.
 
-**How it works.** stunnel listens on 9999 and demands a certificate signed
-by an authority you created. Only then does it pass the connection to
-Emacs, which is listening on the container's loopback where nothing else
-can reach it. A stranger is refused during the handshake, before Emacs
-sees a byte. The shared key still exists, but it now travels inside TLS
-and behind a certificate, as a second factor rather than the only one.
+The short of it. Emacs's own authentication is a key in a file sent in
+the clear, granting whoever holds it arbitrary Lisp, so the daemon does
+not hold the published port. stunnel does, inside the container, and it
+demands a certificate signed by an authority you made before passing
+anything to Emacs, which listens only on the container's loopback.
 
-Nothing is burdensome at the point of use: no tunnel to start, no password
-to type. `M-x revere-client-new` just works.
-
-**Make the certificates**, naming the daemon the way you will dial it:
-
-```bash
-docker/make-certs.sh nas.lan 192.168.1.20
-```
-
-That writes a `certs` folder. Copy `ca.pem` and `server.pem` to
-`/volume1/docker/revere/certs` on the NAS, which the compose file mounts
-read-only. Keep `ca.pem`, `client.pem` and `client-key.pem` on the machine
-you work from. `ca-key.pem` signs future client certificates: keep it
-somewhere safe or delete it, and never put it on the NAS.
-
-**Install the client.** `revere-client.el` is self-contained: it requires
-only `server` and `project`, both of which ship with Emacs, and nothing
-else from Revere. Copy that one file somewhere on your `load-path`, or
-clone the repository and add its `lisp` folder:
-
-```elisp
-(add-to-list 'load-path "~/src/revere/lisp")
-```
-
-Installing all of Revere on your own machine is a different thing, and the
-two coexist happily: Revere proper for hands-on work in your own editor
-against your own endpoint, the client for pushing work to the NAS. If you
-already have Revere installed, you already have the client.
-
-Put the three files you kept from the certificate script somewhere private,
-`~/revere/` below.
-
-**Run the proxy on this side too.** `emacsclient` has no TLS of its own,
-and rather than give up the frame, give it a proxy: copy
-[client-stunnel.conf](client-stunnel.conf), point it at your NAS and your
-certificates, and run it.
-
-```bash
-stunnel ~/revere/client-stunnel.conf
-```
-
-It listens on `127.0.0.1:9998`, which is the address the daemon already
-records in its server file, so nothing else needs telling. Everything then
-behaves like a daemon on your own machine, frames included, with the
-encrypted leg running between the two proxies.
-
-**Then, in your own Emacs:**
-
-```elisp
-(require 'revere-client)
-(setq revere-client-server "revere"
-      ;; The proxy on this machine is doing the TLS, so Emacs talks plain
-      ;; TCP to it.  The key rotates whenever the daemon restarts, so read
-      ;; the server file from the share rather than keeping a stale copy.
-      revere-client-host "127.0.0.1"
-      revere-client-port 9998
-      revere-client-auth-dir "//nas/docker/revere/config/server/")
-```
-
-**Or skip the local proxy**, and let Emacs speak TLS itself. Jobs and
-status work; frames do not, because those are `emacsclient`, which cannot.
-
-```elisp
-(require 'revere-client)
-(setq revere-client-server "revere"
-      revere-client-tls t
-      revere-client-host "nas.lan"          ; a name in the certificate
-      revere-client-port 9999
-      revere-client-ca "~/revere/ca.pem"
-      revere-client-certificate '("~/revere/client-key.pem"
-                                  "~/revere/client.pem")
-      revere-client-auth-dir "//nas/docker/revere/config/server/")
-```
-
-`revere-client-host` must match one of the names you passed to the script,
-because Emacs verifies the daemon's certificate against it. Verification
-is strict: a wrong name or an unknown authority is an error, not a prompt.
-
-`M-x revere-client-new` starts a job on the NAS from the project you are
-in, working in that project's directory. `M-x revere-client-status` lists
-what the daemon is doing.
-
-`M-x revere-client-frame` opens a real frame on the daemon: the chat, the
-approvals list, the whole interface, running there. It needs the local
-proxy above, since it runs `emacsclient`. With `revere-client-tls` on it
-says so rather than failing obscurely.
-
-CI proves this path on every build: `emacsclient` drives the daemon
-through the shipped client config, over mutual TLS, with the server file
-read as written.
-
-**To add another machine**, make it a certificate of its own from the same
-authority and copy only that machine's files to it:
-
-```bash
-openssl req -newkey rsa:2048 -sha256 -nodes -keyout laptop-key.pem   -out laptop.csr -subj "/CN=laptop"
-openssl x509 -req -in laptop.csr -CA ca.pem -CAkey ca-key.pem   -days 825 -sha256 -out laptop.pem
-```
-
-**To turn TLS off**, set `REVERE_TLS` to `0`. Emacs then holds the port
-itself with only the cleartext key in front of it, so bind the port to
-`127.0.0.1`, reach it over an SSH tunnel, and set
-`REVERE_SERVER_ADVERTISE` to the address your client dials. Setting
-`REVERE_SERVER_TCP` to `0` as well removes the network path entirely and
-leaves the Unix socket, which is the strongest setting and still allows
-`docker exec`.
+Set `REVERE_TLS` to `0` and Emacs holds the port itself with only that
+cleartext key in front of it, so bind the port to `127.0.0.1` and tunnel
+to it. Set `REVERE_SERVER_TCP` to `0` as well and there is no network
+path at all, only the Unix socket, which is the strongest setting and
+still allows `docker exec`.
 
 ## MCP and ACP servers
 

@@ -368,6 +368,11 @@ come from the environment, so the image holds no addresses or secrets;
 `local.el` on the config volume sets anything the environment cannot, and
 reloads without a restart.
 
+Two folders, two machines: `docker/` is the NAS side, and
+[client/](client/README.md) is what runs on your own machine if you want
+to reach the daemon from the Emacs you work in. Nothing there is needed
+to use the daemon, which does its work whether or not anyone connects.
+
 Attach to it the same way as any daemon, from a shell on the host:
 
 ```bash
