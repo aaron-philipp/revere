@@ -108,7 +108,8 @@ RUN chmod +x /usr/local/bin/revere-entrypoint \
  && useradd --create-home --home-dir /home/revere --shell /bin/bash \
             --uid 1000 --user-group revere \
  && mkdir -p /config /data /servers/bin /work /run/revere \
- && chown -R revere:revere /home/revere /config /data /servers /work /run/revere
+ && chown -R revere:revere /home/revere /config /data /servers /work /run/revere \
+ && chmod 700 /run/revere
 
 ENV HOME=/home/revere \
     REVERE_CONFIG=/config \
