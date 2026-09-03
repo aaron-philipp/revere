@@ -11,7 +11,7 @@
 
 (setq server-use-tcp (eq system-type 'windows-nt))
 
-(add-to-list 'load-path "~/src/revere")
+(add-to-list 'load-path "~/src/revere/lisp")
 (require 'revere)
 
 (setq revere-base-url "http://localhost:4000"

@@ -1,6 +1,6 @@
 # Revere
 
-An assistant that does jobs, built on Emacs.
+An agentic framework built on Emacs.
 
 You talk to it in a chat that sits beside your files. It reads and edits
 them in Emacs buffers, never on disk, and shows you each file as it works
@@ -58,7 +58,7 @@ diff-mode, ediff, Org, TRAMP, the server. The reasoning behind it is in
 Clone or copy the directory, then in your init:
 
 ```elisp
-(add-to-list 'load-path "~/src/revere")
+(add-to-list 'load-path "~/src/revere/lisp")
 (require 'revere)
 (setq revere-base-url "http://localhost:4000"   ; your endpoint
       revere-model    "qwen-3.8")
@@ -345,7 +345,7 @@ approvals and finished changes come back to the channel. Once:
 
    ```elisp
    (setq revere-discord-channels '("123456789012345678")
-         revere-channel-directories '(("discord:123456789012345678" . "~/src/revere")))
+         revere-channel-directories '(("discord:123456789012345678" . "~/src/revere/lisp")))
    ```
 
 Then `M-x revere-discord-connect`; the daemon connects by itself.
@@ -587,8 +587,16 @@ location; set `EMACS` to override. The tests fake the model and use a
 throwaway `revere-directory`; the MCP test runs a fake server written in
 Elisp.
 
-Layout: one file per concern, `revere-<thing>.el`, with `revere.el` as the
-entry point and menu. `DESIGN.md` explains the choices.
+Layout:
+
+| Path        | Holds                                                    |
+|-------------|----------------------------------------------------------|
+| `lisp/`     | the package, one file per concern, `revere.el` the entry point and menu |
+| `test/`     | the ert suite and the fake MCP server                    |
+| `skills/`   | skills shipped with Revere                               |
+| `contrib/`  | an example init and the daemon init                      |
+| `bin/`      | `check.sh`                                               |
+| `DESIGN.md` | why it works the way it does                             |
 
 ## License
 

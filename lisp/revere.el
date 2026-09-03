@@ -1,4 +1,4 @@
-;;; revere.el --- An assistant that does jobs, built on Emacs -*- lexical-binding: t; -*-
+;;; revere.el --- An agentic framework built on Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 Revere contributors
 ;; Version: 0.2.0
@@ -18,7 +18,7 @@
 ;; discard the changes, in the file, in the chat, or in a diff.
 ;;
 ;; Quick start:
-;;   (add-to-list 'load-path "/path/to/revere")
+;;   (add-to-list 'load-path "/path/to/revere/lisp")
 ;;   (require 'revere)
 ;;   (setq revere-base-url "http://localhost:4000" revere-model "qwen-3.8")
 ;;   M-x revere

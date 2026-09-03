@@ -14,16 +14,16 @@ if ! command -v "$EMACS" >/dev/null 2>&1; then
 fi
 
 echo "== compile (warnings are errors)"
-rm -f ./*.elc test/*.elc
-"$EMACS" -Q --batch -L . \
+rm -f lisp/*.elc test/*.elc
+"$EMACS" -Q --batch -L lisp \
   --eval '(setq byte-compile-error-on-warn t)' \
-  -f batch-byte-compile ./*.el
+  -f batch-byte-compile lisp/*.el
 
 echo "== checkdoc (advisory)"
-"$EMACS" -Q --batch -L . \
-  --eval '(progn (require (quote checkdoc)) (dolist (f (file-expand-wildcards "*.el")) (checkdoc-file f)))' || true
+"$EMACS" -Q --batch -L lisp \
+  --eval '(progn (require (quote checkdoc)) (dolist (f (file-expand-wildcards "lisp/*.el")) (checkdoc-file f)))' || true
 
 echo "== tests"
-"$EMACS" -Q --batch -L . -L test -l revere-tests -f ert-run-tests-batch-and-exit
+"$EMACS" -Q --batch -L lisp -L test -l revere-tests -f ert-run-tests-batch-and-exit
 
 echo "== ok"

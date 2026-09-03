@@ -307,7 +307,7 @@
 ;; The Discord channel needs websocket; the token lives in auth-source.
 (use-package websocket :defer t)
 
-(add-to-list 'load-path "~/src/revere")
+(add-to-list 'load-path "~/src/revere/lisp")
 (require 'revere)
 (setq revere-base-url "http://localhost:4000"
       revere-model    "qwen-3.8")

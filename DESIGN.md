@@ -1,4 +1,4 @@
-# Revere — an assistant that does jobs, built on Emacs
+# Revere — an agentic framework built on Emacs
 
 Revere does jobs for you inside Emacs. It has the same shape as Hermes and
 OpenClaw (model loop, tool registry, skills, memory, routines, channels,
@@ -46,8 +46,9 @@ build, so rely on byte-compilation).
 Names use Emacs's own words where one exists and ordinary work language
 otherwise, with one exception: words that Cursor-level users already know
 (prompt, tool, tool call, skill, memory, subagent, approval) stay, because
-they are the on-ramp for people new to this. Nothing user-facing says
-agent, agentic, harness, run, changeset, or reflect. The harness words
+they are the on-ramp for people new to this. Revere describes itself as an
+agentic framework, because that is what it is; inside the interface
+nothing says agent, harness, run, changeset, or reflect. The harness words
 appear in this document only in the left column below and in the left
 columns of sections 1 and 8, where they are needed to map onto other
 systems.
@@ -616,6 +617,7 @@ Lifecycle:
 
 ```
 revere/
+  lisp/
   revere.el               entry, defcustoms, autoloads
   revere-llm.el           transport: curl + SSE (from pi-emacs-llm), backends
   revere-models.el        model discovery (from pi-emacs-models)

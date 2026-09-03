@@ -33,8 +33,8 @@
   "Skill directories whose skill.el has been loaded.")
 
 (defconst revere-skills--bundled
-  (expand-file-name "skills" (file-name-directory (or load-file-name buffer-file-name "")))
-  "The skills folder shipped with Revere.")
+  (expand-file-name "../skills" (file-name-directory (or load-file-name buffer-file-name "")))
+  "The skills folder shipped with Revere, beside the lisp directory.")
 
 ;;;; Reading
 

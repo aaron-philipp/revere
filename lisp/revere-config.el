@@ -17,7 +17,7 @@
 ;;; Code:
 
 (defgroup revere nil
-  "An assistant that does jobs, built on Emacs."
+  "An agentic framework built on Emacs."
   :group 'tools
   :prefix "revere-")
 

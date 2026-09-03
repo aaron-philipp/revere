@@ -7,10 +7,10 @@ check:
 	bin/check.sh
 
 compile:
-	$(EMACS) -Q --batch -L . --eval '(setq byte-compile-error-on-warn t)' -f batch-byte-compile *.el
+	$(EMACS) -Q --batch -L lisp --eval '(setq byte-compile-error-on-warn t)' -f batch-byte-compile lisp/*.el
 
 test:
-	$(EMACS) -Q --batch -L . -L test -l revere-tests -f ert-run-tests-batch-and-exit
+	$(EMACS) -Q --batch -L lisp -L test -l revere-tests -f ert-run-tests-batch-and-exit
 
 clean:
-	rm -f *.elc test/*.elc
+	rm -f lisp/*.elc test/*.elc
