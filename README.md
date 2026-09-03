@@ -34,6 +34,12 @@ Everything sits on what Emacs already has: buffers, undo, diff-mode,
 ediff, Org, TRAMP, the server. The reasoning behind it is in
 [DESIGN.md](DESIGN.md).
 
+> **Running it as a daemon:** the daemon does not re-read its Org files
+> from disk, so routines, check-in notes and board cards written from
+> another machine are ignored, and edits to `board.org` can be overwritten.
+> Discord and `docker exec` are the working inbound channels until that is
+> fixed. [HANDOFF.md](HANDOFF.md) has the detail.
+
 - [Requirements](#requirements)
 - [Install](#install)
 - [Your first job](#your-first-job)

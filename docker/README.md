@@ -5,6 +5,13 @@ for work, Discord is answered, and unattended jobs run in git worktrees you
 merge when you are happy. You attach to it when you want to watch or take
 over.
 
+> **Known bug:** the daemon holds its Org files in memory and never
+> re-reads them, so a routine, check-in note or board card you write on
+> the share is never seen, and your edits to `board.org` can be
+> overwritten by the daemon's stale copy. Hand it work over Discord or
+> with `docker exec` until that is fixed; see
+> [HANDOFF.md](../HANDOFF.md).
+
 The NAS builds nothing. GitHub Actions builds the image, runs the test
 suite inside it, starts the daemon and waits for it to answer, and only
 then publishes to `ghcr.io/aaron-philipp/revere`. The package is public,
