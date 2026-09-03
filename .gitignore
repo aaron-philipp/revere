@@ -1,0 +1,13 @@
+# Byte-compiled and native-compiled Elisp
+*.elc
+*.eln
+eln-cache/
+
+# Emacs backups and locks
+*~
+\#*\#
+.\#*
+
+# Autoloads and package files
+*-autoloads.el
+*-pkg.el
