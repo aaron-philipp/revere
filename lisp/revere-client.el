@@ -200,19 +200,27 @@ include an authority of your own making."
 
 ;;;###autoload
 (defun revere-client-frame ()
-  "Open a frame on the daemon.
-Only for a daemon you can reach directly, by socket or plain TCP.
-`emacsclient' does not speak TLS, so a daemon behind a TLS proxy is
-attached to on its own host instead."
+  "Open a frame on the daemon: the whole interface, running there.
+Uses the server file when `revere-client-auth-dir' names one, which is how
+a daemon reached over TCP is addressed, and the socket name otherwise.
+
+`emacsclient' has no TLS of its own, so a daemon behind a TLS proxy is
+reached through a proxy on this side too: point one at the daemon, have it
+listen on the loopback, and set `revere-client-tls' to nil.  Then this and
+everything else works over plain TCP to your own machine, with the
+encrypted leg between the two proxies."
   (interactive)
   (when revere-client-tls
     (user-error
-     "%s" (concat "emacsclient cannot speak TLS.  Attach a frame on the "
-                  "daemon's own host instead, with: emacsclient -s "
-                  "/run/revere/revere -t")))
+     "%s" (concat "emacsclient cannot speak TLS itself.  Run a TLS proxy on "
+                  "this machine, set revere-client-tls to nil and point "
+                  "revere-client-host and -port at it; see docker/README.md")))
   (start-process "revere-client" nil
                  (if (eq system-type 'windows-nt) "emacsclientw" "emacsclient")
-                 "-s" revere-client-server "-c"))
+                 (if revere-client-auth-dir
+                     (concat "--server-file=" (revere-client--server-file))
+                   (concat "-s" revere-client-server))
+                 "-c"))
 
 (provide 'revere-client)
 ;;; revere-client.el ends here
