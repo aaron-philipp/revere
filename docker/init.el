@@ -170,10 +170,42 @@
 
 ;;;; Start
 
+(defun revere-container--advertise ()
+  "Put the address a client should dial into the server file.
+Emacs writes the address it listens on, which inside a container is
+0.0.0.0 and reaches nobody.  REVERE_SERVER_ADVERTISE replaces it, so the
+file on the config volume can be used as it stands: 127.0.0.1 when you
+reach the port through an SSH tunnel, or the NAS's own address when you
+publish the port to the network."
+  (let ((advertise (revere-container-env "REVERE_SERVER_ADVERTISE")))
+    (when (and advertise server-use-tcp server-auth-dir server-name)
+      (let* ((file (expand-file-name server-name server-auth-dir))
+             (coding-system-for-read 'no-conversion)
+             (coding-system-for-write 'no-conversion))
+        (when (file-exists-p file)
+          (let ((text (with-temp-buffer
+                        (set-buffer-multibyte nil)
+                        (insert-file-contents file)
+                        (buffer-string))))
+            (if (not (string-match "\\`\\([0-9.]+\\):\\([0-9]+\\)" text))
+                (message "revere: server file has no address to replace")
+              (let ((port (match-string 2 text)))
+                (with-temp-file file
+                  (set-buffer-multibyte nil)
+                  (insert (replace-match advertise t t text 1)))
+                (set-file-modes file #o600)
+                (message "revere: server file points clients at %s:%s"
+                         advertise port)))))))))
+
+(defun revere-container-start ()
+  "Start the service, then make its server file usable from elsewhere."
+  (revere-daemon-start)
+  (revere-container--advertise))
+
 ;; Emacs starts the daemon's server itself, after this file and after the
 ;; command line.  Waiting a turn lets that happen first, so the server is
 ;; started once, by Emacs, with the settings above.
-(run-at-time 0 nil #'revere-daemon-start)
+(run-at-time 0 nil #'revere-container-start)
 
 ;; Stopping the container writes the logbook out.
 (add-hook 'kill-emacs-hook #'revere-daemon-stop)

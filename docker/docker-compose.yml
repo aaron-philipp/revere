@@ -43,6 +43,11 @@ services:
       # it to 0 if you will only ever attach from a shell on the NAS.
       REVERE_SERVER_TCP: "1"
       REVERE_SERVER_PORT: "9999"
+      # The address written into config/server/revere, which is what a
+      # client dials.  127.0.0.1 suits the loopback binding below, reached
+      # over an SSH tunnel.  Put the NAS's own address here if you publish
+      # the port to the network instead.
+      REVERE_SERVER_ADVERTISE: "127.0.0.1"
 
       # Who the unattended commits come from.
       GIT_AUTHOR_NAME: "Revere"
@@ -54,11 +59,20 @@ services:
       # REVERE_DISCORD: "off"
 
     ports:
-      # The Emacs server, so another Emacs on your network can drive this
-      # daemon with revere-client.  Anyone who can reach this port and read
-      # config/server/revere can evaluate Lisp in it, which is a shell on
-      # your NAS: leave it on your LAN and never forward it at the router.
-      - "9999:9999"
+      # The Emacs server, so the Emacs you already use can drive this
+      # daemon with revere-client.
+      #
+      # Bound to the NAS's loopback, so it is reached over an SSH tunnel:
+      #   ssh -L 9999:127.0.0.1:9999 you@nas
+      # Emacs authenticates with a 64-character key sent in the clear and
+      # grants whoever presents it arbitrary Lisp, which is a shell on your
+      # NAS.  The tunnel is what encrypts that key and puts your SSH
+      # credentials in front of it.
+      - "127.0.0.1:9999:9999"
+      # To reach it from the network directly instead, with the key
+      # crossing your LAN in the clear, use this and set
+      # REVERE_SERVER_ADVERTISE to the NAS's address.
+      # - "9999:9999"
 
     volumes:
       # DSM keeps container config and data under /volume1/docker.

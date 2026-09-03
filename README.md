@@ -570,7 +570,7 @@ Unattended: `revere-directory`, `revere-config-directory`, `revere-routine-tick`
 Channels: `revere-discord-token`, `revere-discord-channels`,
 `revere-discord-users`, `revere-discord-autoconnect`,
 `revere-channel-directories`, `revere-channel-default-directory`,
-`revere-client-server`.
+`revere-client-server`, `revere-client-auth-dir`.
 
 Extending: `revere-system-prompt`, `revere-project-instruction-files`,
 `revere-project-instructions-limit`, `revere-skill-dirs`,

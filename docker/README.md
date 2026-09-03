@@ -179,23 +179,54 @@ Container Manager's own Terminal tab on the container works too: create a
 
 ## Reaching it from your own Emacs
 
-Port 9999 is the Emacs server, and `REVERE_SERVER_TCP` turns it on. It is
-on in the compose file because driving the daemon from the Emacs you
-already use is the point of running it here.
+Port 9999 is the Emacs server, and this is worth understanding before you
+widen it.
 
-Understand what it is first. Anyone who can reach that port **and** read
-`config/server/revere` can evaluate any Lisp in the daemon, which is a
-shell on your NAS. Keep it on your LAN, never forward it at the router,
-and set `REVERE_SERVER_TCP: "0"` and drop the port if you would rather
-attach only from a shell on the NAS.
+**What the authentication is.** With TCP on, Emacs writes
+`config/server/revere`: the address and port on the first line, and a
+64-character random key on the second. A client sends that key as the
+first thing it says, and the server compares it. That is the whole scheme.
+Emacs's own documentation is blunt about the rest: the key is transmitted
+as plain text, and communications are unencrypted. There is no TLS, no
+identity beyond the key, and no scoping. Whoever presents it can evaluate
+any Lisp in the daemon, which is a shell on your NAS as the container's
+user, with your code and your model key in reach.
 
-To use it, copy `/volume1/docker/revere/config/server/revere` into your own
-`server-auth-dir`, and in your init:
+The key is regenerated every time the daemon starts, so it changes on
+every restart and every update.
+
+**Without TCP**, when `REVERE_SERVER_TCP` is `0`, the server is a Unix
+socket in `/run/revere` and the only control is file permissions: Emacs
+refuses to use that directory unless it is owned by the daemon's user and
+closed to everyone else. Reaching it means being that user, or root, on
+the NAS. That is the strongest setting, and `docker exec` still attaches.
+
+**The compose file therefore binds the port to the NAS's loopback**, not
+to the network. You reach it through an SSH tunnel:
+
+```bash
+ssh -L 9999:127.0.0.1:9999 you@nas
+```
+
+The tunnel encrypts the key in transit and puts your SSH credentials in
+front of the port. Publishing `9999:9999` instead puts a plaintext
+password for a remote shell on your LAN; if you do it anyway, set
+`REVERE_SERVER_ADVERTISE` to the NAS's address and keep it off the router.
+
+**Then, in your own Emacs**, point it at the server file on the share
+rather than copying it, so a restarted daemon does not leave you holding a
+stale key:
 
 ```elisp
 (require 'revere-client)
-(setq revere-client-server "revere")
+(setq revere-client-server "revere"
+      revere-client-auth-dir "//nas/docker/revere/config/server/")
 ```
+
+The container rewrites that file's address to `REVERE_SERVER_ADVERTISE`,
+`127.0.0.1` by default, because Emacs would otherwise record the address
+it listens on inside the container, which is `0.0.0.0` and reaches nobody.
+So with the tunnel up the file works as it stands.
 
 `M-x revere-client-new` starts a job on the NAS from the project you are
 in. `M-x revere-client-status` lists what it is doing.

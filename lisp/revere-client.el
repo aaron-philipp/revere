@@ -27,9 +27,18 @@
   "Name of the daemon's server."
   :type 'string)
 
+(defcustom revere-client-auth-dir nil
+  "Where the daemon's server file is, when it is not in `server-auth-dir'.
+A daemon on another machine writes its address and key to a file named
+after its server.  Point this at that folder, a mounted share for
+instance, and the key is always the current one; nil uses your own
+`server-auth-dir', where you would have copied the file by hand."
+  :type '(choice (const :tag "Your own server-auth-dir" nil) directory))
+
 (defun revere-client-eval (form)
   "Evaluate FORM on the daemon and return its value."
-  (server-eval-at revere-client-server form))
+  (let ((server-auth-dir (or revere-client-auth-dir server-auth-dir)))
+    (server-eval-at revere-client-server form)))
 
 ;;;###autoload
 (defun revere-client-new (prompt)
