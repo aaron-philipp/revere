@@ -147,6 +147,32 @@ jobs:
                                  (kill-emacs 1))
                         (error (message "refused, as it should be"))))'             || { echo "FAIL: a client with no certificate got through";                  docker logs tls; docker rm -f tls; exit 1; }
 
+          echo "--- several certificate holders at once"
+          pids=""
+          for n in 1 2 3 4 5 6; do
+            docker run --rm --network host --entrypoint emacs -e "N=$n"               -v "$PWD/certs:/certs:ro" -v "$PWD/config:/config:ro"               revere:candidate -Q --batch -L /opt/revere/lisp               --eval '(progn
+                        (require (quote revere-client))
+                        (setq revere-client-auth-dir "/config/server/"
+                              revere-client-tls t
+                              revere-client-host "127.0.0.1"
+                              revere-client-port 9999
+                              revere-client-ca "/certs/ca.pem"
+                              revere-client-certificate
+                                (list "/certs/client-key.pem" "/certs/client.pem"))
+                        (let* ((mine (string-to-number (getenv "N")))
+                               (answer (revere-client-eval (list (quote list) mine (quote (emacs-pid))))))
+                          (message "client %d got %S" mine answer)
+                          (unless (equal (car answer) mine) (kill-emacs 1))))' &
+            pids="$pids $!"
+          done
+          failed=0
+          for p in $pids; do wait "$p" || failed=1; done
+          if [ "$failed" != "0" ]; then
+            echo "FAIL: concurrent clients were not all served"
+            docker logs tls; docker rm -f tls; exit 1
+          fi
+          echo "all six were served, each its own answer"
+
           docker logs tls | tail -20
           docker rm -f tls
 
