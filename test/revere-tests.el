@@ -983,6 +983,23 @@ Each reply is (TEXT CALLS USAGE)."
             (should-not (string-match-p (substring revere-system-prompt 0 20) prompt)))
         (delete-file (revere-prompt-file))))))
 
+(ert-deftest revere-client/silence-is-not-a-nil-answer ()
+  "Being turned away is an error, not an empty result."
+  (require 'revere-client)
+  (with-temp-buffer
+    (insert "-print " (server-quote-arg "42") "\n")
+    (should (equal 42 (revere-client--answer))))
+  (with-temp-buffer
+    (insert "-print \n")
+    (should (null (revere-client--answer))))
+  ;; Nothing came back at all: the connection was closed on us, which is
+  ;; what a refused certificate looks like from here.
+  (with-temp-buffer
+    (should-error (revere-client--answer)))
+  (with-temp-buffer
+    (insert "-error " (server-quote-arg "Authentication failed") "\n")
+    (should-error (revere-client--answer))))
+
 (ert-deftest revere-prompt/config-directory-moves-instructions-and-skills ()
   "Standing instructions and your own skills follow `revere-config-directory'."
   ;; Unset, everything stays with the rest of the state.

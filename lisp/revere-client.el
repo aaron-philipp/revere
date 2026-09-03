@@ -125,11 +125,20 @@ include an authority of your own making."
            (server-unquote-arg
             (buffer-substring (point) (line-end-position)))))
   (goto-char (point-min))
-  (let ((answer ""))
+  (let ((answer "") (replied nil))
     (while (re-search-forward "\\(?:\\`\\|\n\\)-print\\(-nonl\\)? " nil t)
-      (setq answer (concat answer (buffer-substring
+      (setq replied t
+            answer (concat answer (buffer-substring
                                    (point)
                                    (progn (skip-chars-forward "^\n") (point))))))
+    ;; Silence is not the same as a nil result.  A connection that closes
+    ;; without a word is what being turned away looks like: no certificate
+    ;; the daemon accepts, or a key it did not recognise.
+    (unless replied
+      (error "The Revere daemon closed the connection without answering%s"
+             (if revere-client-tls
+                 ", which is what happens when your certificate is missing or refused"
+               "")))
     (unless (equal answer "")
       (read (decode-coding-string (server-unquote-arg answer) 'emacs-internal)))))
 
