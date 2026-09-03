@@ -200,8 +200,16 @@ include an authority of your own making."
 
 ;;;###autoload
 (defun revere-client-frame ()
-  "Open a frame on the daemon."
+  "Open a frame on the daemon.
+Only for a daemon you can reach directly, by socket or plain TCP.
+`emacsclient' does not speak TLS, so a daemon behind a TLS proxy is
+attached to on its own host instead."
   (interactive)
+  (when revere-client-tls
+    (user-error
+     "%s" (concat "emacsclient cannot speak TLS.  Attach a frame on the "
+                  "daemon's own host instead, with: emacsclient -s "
+                  "/run/revere/revere -t")))
   (start-process "revere-client" nil
                  (if (eq system-type 'windows-nt) "emacsclientw" "emacsclient")
                  "-s" revere-client-server "-c"))

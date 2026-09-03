@@ -1000,6 +1000,12 @@ Each reply is (TEXT CALLS USAGE)."
     (insert "-error " (server-quote-arg "Authentication failed") "\n")
     (should-error (revere-client--answer))))
 
+(ert-deftest revere-client/no-frame-over-tls ()
+  "A frame needs emacsclient, which cannot speak TLS, so say so."
+  (require 'revere-client)
+  (let ((revere-client-tls t))
+    (should-error (revere-client-frame) :type 'user-error)))
+
 (ert-deftest revere-prompt/config-directory-moves-instructions-and-skills ()
   "Standing instructions and your own skills follow `revere-config-directory'."
   ;; Unset, everything stays with the rest of the state.

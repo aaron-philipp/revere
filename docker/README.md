@@ -206,6 +206,23 @@ read-only. Keep `ca.pem`, `client.pem` and `client-key.pem` on the machine
 you work from. `ca-key.pem` signs future client certificates: keep it
 somewhere safe or delete it, and never put it on the NAS.
 
+**Install the client.** `revere-client.el` is self-contained: it requires
+only `server` and `project`, both of which ship with Emacs, and nothing
+else from Revere. Copy that one file somewhere on your `load-path`, or
+clone the repository and add its `lisp` folder:
+
+```elisp
+(add-to-list 'load-path "~/src/revere/lisp")
+```
+
+Installing all of Revere on your own machine is a different thing, and the
+two coexist happily: Revere proper for hands-on work in your own editor
+against your own endpoint, the client for pushing work to the NAS. If you
+already have Revere installed, you already have the client.
+
+Put the three files you kept from the certificate script somewhere private,
+`~/revere/` below.
+
 **Then, in your own Emacs:**
 
 ```elisp
@@ -227,7 +244,15 @@ because Emacs verifies the daemon's certificate against it. Verification
 is strict: a wrong name or an unknown authority is an error, not a prompt.
 
 `M-x revere-client-new` starts a job on the NAS from the project you are
-in. `M-x revere-client-status` lists what it is doing.
+in, working in that project's directory. `M-x revere-client-status` lists
+what the daemon is doing.
+
+`M-x revere-client-frame` is the exception: it opens a real frame by
+running `emacsclient`, which does not speak TLS, so it works only against
+a daemon you can reach directly by socket or plain TCP. With TLS on it
+tells you so rather than failing obscurely. For the full interface on the
+NAS daemon, attach a terminal frame on the NAS itself as described in
+[Attaching](#attaching).
 
 **To add another machine**, make it a certificate of its own from the same
 authority and copy only that machine's files to it:
