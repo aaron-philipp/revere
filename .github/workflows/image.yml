@@ -118,6 +118,14 @@ jobs:
           fi
           echo "refused, as it should be"
 
+          echo "--- openssl with the certificate must get through"
+          if ! openssl s_client -connect 127.0.0.1:9999 -CAfile certs/ca.pem                  -cert certs/client.pem -key certs/client-key.pem                  </dev/null 2>&1 | tee openssl.log | grep -q "Verify return code: 0"; then
+            echo "FAIL: the proxy rejected a valid client certificate"
+            tail -30 openssl.log
+            docker logs tls; docker rm -f tls; exit 1
+          fi
+          echo "openssl got through"
+
           echo "--- the certificate holder gets an answer"
           sudo chmod -R a+rX config
           docker run --rm --network host --entrypoint emacs \
@@ -135,7 +143,8 @@ jobs:
                               (list "/certs/client-key.pem" "/certs/client.pem"))
                       (let ((answer (revere-client-eval (quote (list emacs-version (length revere-job-list))))))
                         (message "daemon answered over TLS: %S" answer)
-                        (unless (consp answer) (kill-emacs 1))))'
+                        (unless (consp answer) (kill-emacs 1))))'             || { echo "FAIL: the Emacs client could not complete the handshake";                  docker logs tls; docker rm -f tls; exit 1; }
+          docker logs tls
           docker rm -f tls
 
       - uses: docker/login-action@v3
