@@ -223,7 +223,35 @@ already have Revere installed, you already have the client.
 Put the three files you kept from the certificate script somewhere private,
 `~/revere/` below.
 
+**Run the proxy on this side too.** `emacsclient` has no TLS of its own,
+and rather than give up the frame, give it a proxy: copy
+[client-stunnel.conf](client-stunnel.conf), point it at your NAS and your
+certificates, and run it.
+
+```bash
+stunnel ~/revere/client-stunnel.conf
+```
+
+It listens on `127.0.0.1:9998`, which is the address the daemon already
+records in its server file, so nothing else needs telling. Everything then
+behaves like a daemon on your own machine, frames included, with the
+encrypted leg running between the two proxies.
+
 **Then, in your own Emacs:**
+
+```elisp
+(require 'revere-client)
+(setq revere-client-server "revere"
+      ;; The proxy on this machine is doing the TLS, so Emacs talks plain
+      ;; TCP to it.  The key rotates whenever the daemon restarts, so read
+      ;; the server file from the share rather than keeping a stale copy.
+      revere-client-host "127.0.0.1"
+      revere-client-port 9998
+      revere-client-auth-dir "//nas/docker/revere/config/server/")
+```
+
+**Or skip the local proxy**, and let Emacs speak TLS itself. Jobs and
+status work; frames do not, because those are `emacsclient`, which cannot.
 
 ```elisp
 (require 'revere-client)
@@ -234,8 +262,6 @@ Put the three files you kept from the certificate script somewhere private,
       revere-client-ca "~/revere/ca.pem"
       revere-client-certificate '("~/revere/client-key.pem"
                                   "~/revere/client.pem")
-      ;; The key rotates whenever the daemon restarts, so read it from the
-      ;; share rather than keeping a copy that goes stale.
       revere-client-auth-dir "//nas/docker/revere/config/server/")
 ```
 
@@ -247,12 +273,14 @@ is strict: a wrong name or an unknown authority is an error, not a prompt.
 in, working in that project's directory. `M-x revere-client-status` lists
 what the daemon is doing.
 
-`M-x revere-client-frame` is the exception: it opens a real frame by
-running `emacsclient`, which does not speak TLS, so it works only against
-a daemon you can reach directly by socket or plain TCP. With TLS on it
-tells you so rather than failing obscurely. For the full interface on the
-NAS daemon, attach a terminal frame on the NAS itself as described in
-[Attaching](#attaching).
+`M-x revere-client-frame` opens a real frame on the daemon: the chat, the
+approvals list, the whole interface, running there. It needs the local
+proxy above, since it runs `emacsclient`. With `revere-client-tls` on it
+says so rather than failing obscurely.
+
+CI proves this path on every build: `emacsclient` drives the daemon
+through the shipped client config, over mutual TLS, with the server file
+read as written.
 
 **To add another machine**, make it a certificate of its own from the same
 authority and copy only that machine's files to it:
