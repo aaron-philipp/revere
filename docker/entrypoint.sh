@@ -99,7 +99,6 @@ if [ "${REVERE_TLS:-0}" = "1" ] || [ "${REVERE_TLS:-off}" = "on" ]; then
 foreground = yes
 pid =
 syslog = no
-output = /dev/stderr
 debug = 4
 [revere]
 accept = 0.0.0.0:${REVERE_TLS_PORT:-9999}
@@ -112,6 +111,14 @@ sslVersionMin = TLSv1.2
 EOF
   echo "revere: TLS on ${REVERE_TLS_PORT:-9999}, clients must present a certificate"
   "$STUNNEL" "$SOCKET_DIR/tls/stunnel.conf" &
+  stunnel_pid=$!
+  # If it dies the published port simply closes, which is safe but silent.
+  # Say so instead, and stop, rather than run with TLS quietly absent.
+  sleep 1
+  if ! kill -0 "$stunnel_pid" 2>/dev/null; then
+    echo "revere: stunnel would not start, so TLS is not available; stopping." >&2
+    exit 1
+  fi
 fi
 
 echo "revere: starting as $(id -un) ($(id -u):$(id -g))"
