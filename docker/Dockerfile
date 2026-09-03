@@ -48,7 +48,9 @@ ARG WITH_PYTHON=false
 # emacs-nox is the runtime.  The rest is what the tools reach for: curl for
 # the model transport and the fetch tool, diff for the review, git for
 # worktrees and unattended jobs, ripgrep for fast search.  gosu drops from
-# root to the run user once the entrypoint has fixed ownership.
+# root to the run user once the entrypoint has fixed ownership, and
+# stunnel puts mutual TLS in front of the Emacs server when it is asked
+# for, since Emacs cannot speak TLS on a listening socket itself.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       emacs-nox \
@@ -62,6 +64,7 @@ RUN apt-get update \
       procps \
       gosu \
       tzdata \
+      stunnel4 \
  && if [ "$WITH_NODE" = "true" ]; then \
       apt-get install -y --no-install-recommends nodejs npm; fi \
  && if [ "$WITH_PYTHON" = "true" ]; then \
@@ -107,8 +110,8 @@ RUN emacs -Q --batch \
 RUN chmod +x /usr/local/bin/revere-entrypoint \
  && useradd --create-home --home-dir /home/revere --shell /bin/bash \
             --uid 1000 --user-group revere \
- && mkdir -p /config /data /servers/bin /work /run/revere \
- && chown -R revere:revere /home/revere /config /data /servers /work /run/revere \
+ && mkdir -p /config /data /servers/bin /work /run/revere /certs \
+ && chown -R revere:revere /home/revere /config /data /servers /work /run/revere /certs \
  && chmod 700 /run/revere
 
 ENV HOME=/home/revere \

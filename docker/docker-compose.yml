@@ -39,15 +39,22 @@ services:
       REVERE_BASE_URL: "http://litellm.lan:4000"
       REVERE_MODEL: "qwen-3.8"
 
-      # The Emacs server on TCP, which is what the port below is for.  Set
-      # it to 0 if you will only ever attach from a shell on the NAS.
+      # The Emacs server, reached from the Emacs you already use.
+      #
+      # Emacs authenticates with a shared key sent in the clear, so it is
+      # put behind mutual TLS: stunnel holds the published port, demands a
+      # certificate signed by your own authority, and only then passes the
+      # connection to Emacs on the container's loopback.  Make the
+      # certificates with docker/make-certs.sh and mount them below.
       REVERE_SERVER_TCP: "1"
-      REVERE_SERVER_PORT: "9999"
-      # The address written into config/server/revere, which is what a
-      # client dials.  127.0.0.1 suits the loopback binding below, reached
-      # over an SSH tunnel.  Put the NAS's own address here if you publish
-      # the port to the network instead.
-      REVERE_SERVER_ADVERTISE: "127.0.0.1"
+      REVERE_TLS: "1"
+      REVERE_TLS_PORT: "9999"
+
+      # Set REVERE_TLS to 0 to turn TLS off.  Then Emacs itself holds the
+      # port with nothing but that cleartext key in front of it, so bind
+      # the port below to 127.0.0.1 and reach it over an SSH tunnel, and
+      # set REVERE_SERVER_ADVERTISE to the address your client dials.
+      # REVERE_SERVER_ADVERTISE: "127.0.0.1"
 
       # Who the unattended commits come from.
       GIT_AUTHOR_NAME: "Revere"
@@ -59,20 +66,11 @@ services:
       # REVERE_DISCORD: "off"
 
     ports:
-      # The Emacs server, so the Emacs you already use can drive this
-      # daemon with revere-client.
-      #
-      # Bound to the NAS's loopback, so it is reached over an SSH tunnel:
+      # TLS, and a client without a certificate never reaches Emacs.
+      - "9999:9999"
+      # Without TLS, use this instead and tunnel to it:
       #   ssh -L 9999:127.0.0.1:9999 you@nas
-      # Emacs authenticates with a 64-character key sent in the clear and
-      # grants whoever presents it arbitrary Lisp, which is a shell on your
-      # NAS.  The tunnel is what encrypts that key and puts your SSH
-      # credentials in front of it.
-      - "127.0.0.1:9999:9999"
-      # To reach it from the network directly instead, with the key
-      # crossing your LAN in the clear, use this and set
-      # REVERE_SERVER_ADVERTISE to the NAS's address.
-      # - "9999:9999"
+      # - "127.0.0.1:9999:9999"
 
     volumes:
       # DSM keeps container config and data under /volume1/docker.
@@ -84,6 +82,10 @@ services:
       - /volume1/docker/revere/data:/data
       # MCP and ACP servers that are not in the image, plus their caches.
       - /volume1/docker/revere/servers:/servers
+      # The daemon's certificate and the authority that signed it.  Only
+      # these two belong on the NAS: not ca-key.pem, and not your client
+      # certificate.
+      - /volume1/docker/revere/certs:/certs:ro
       # EDIT: the projects it works on, wherever your code lives.  Append
       # :ro to try it out read-only before you let it edit anything.
       - /volume1/code:/work

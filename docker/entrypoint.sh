@@ -66,6 +66,38 @@ fi
 mkdir -p "$DATA" "$CONFIG" "$SERVERS/bin" "$SOCKET_DIR"
 chmod 700 "$SOCKET_DIR"
 
+# Mutual TLS in front of the Emacs server.  Emacs cannot speak TLS on a
+# listening socket, so it listens on the loopback inside this container
+# and stunnel is the only thing on the published port.  A caller without
+# a certificate signed by our authority is refused at the handshake, long
+# before it can offer Emacs a key.
+if [ "${REVERE_TLS:-0}" = "1" ] || [ "${REVERE_TLS:-off}" = "on" ]; then
+  CERTS="${REVERE_CERTS:-/certs}"
+  for f in "$CERTS/server.pem" "$CERTS/ca.pem"; do
+    if [ ! -r "$f" ]; then
+      echo "revere: REVERE_TLS is on but $f is missing." >&2
+      echo "revere: make them with docker/make-certs.sh and mount them at $CERTS." >&2
+      exit 1
+    fi
+  done
+  cat > "$SOCKET_DIR/stunnel.conf" <<EOF
+foreground = yes
+pid =
+syslog = no
+debug = 4
+[revere]
+accept = 0.0.0.0:${REVERE_TLS_PORT:-9999}
+connect = 127.0.0.1:${REVERE_SERVER_PORT:-9998}
+cert = $CERTS/server.pem
+CAfile = $CERTS/ca.pem
+requireCert = yes
+verifyChain = yes
+sslVersionMin = TLSv1.2
+EOF
+  echo "revere: TLS on ${REVERE_TLS_PORT:-9999}, clients must present a certificate"
+  stunnel "$SOCKET_DIR/stunnel.conf" &
+fi
+
 echo "revere: starting as $(id -un) ($(id -u):$(id -g))"
 echo "revere: config $CONFIG, data $DATA, servers $SERVERS"
 exec emacs -Q --fg-daemon="$SERVER_NAME" -l /opt/revere/init.el "$@"

@@ -18,6 +18,12 @@
 (require 'server)
 (require 'project)
 
+;; Loaded only when a TLS connection is actually asked for; declared here
+;; so let-binding them below is a dynamic binding, not a lexical one.
+(defvar gnutls-trustfiles)
+(defvar gnutls-verify-error)
+(defvar nsm-noninteractive)
+
 (defgroup revere-client nil
   "Talking to a Revere daemon."
   :group 'tools
@@ -35,10 +41,125 @@ instance, and the key is always the current one; nil uses your own
 `server-auth-dir', where you would have copied the file by hand."
   :type '(choice (const :tag "Your own server-auth-dir" nil) directory))
 
+(defcustom revere-client-tls nil
+  "Non-nil to reach the daemon over TLS with a certificate of your own.
+Emacs's own server authentication is a shared key sent in the clear, which
+is only safe on a socket or a trusted wire.  With this on, the daemon sits
+behind a proxy that speaks TLS and demands a client certificate, so the
+key never crosses the network in the open and a caller without the
+certificate never gets far enough to try one."
+  :type 'boolean)
+
+(defcustom revere-client-host nil
+  "Host the daemon answers on, or nil to use the address in its server file.
+Set this when what you dial is not what the daemon believes it is, which
+is the case behind a TLS proxy."
+  :type '(choice (const :tag "From the server file" nil) string))
+
+(defcustom revere-client-port nil
+  "Port the daemon answers on, or nil to use the one in its server file."
+  :type '(choice (const :tag "From the server file" nil) integer))
+
+(defcustom revere-client-certificate nil
+  "The certificate you present, as a list of the key file then the cert file."
+  :type '(choice (const :tag "None" nil) (list file file)))
+
+(defcustom revere-client-ca nil
+  "File holding the authority that signed the daemon's certificate.
+Nil trusts whatever `gnutls-trustfiles' already does, which will not
+include an authority of your own making."
+  :type '(choice (const :tag "System trust" nil) file))
+
+(defcustom revere-client-timeout 30
+  "Seconds to wait for the daemon to answer."
+  :type 'integer)
+
+(defun revere-client--server-file ()
+  "The daemon's server file: its address on one line, its key on the next."
+  (expand-file-name revere-client-server
+                    (or revere-client-auth-dir server-auth-dir)))
+
+(defun revere-client--credentials ()
+  "Where to dial the daemon and what key to greet it with, as (HOST PORT KEY)."
+  (let ((file (revere-client--server-file)))
+    (unless (file-exists-p file)
+      (error "No server file for %s at %s" revere-client-server file))
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (let ((coding-system-for-read 'no-conversion))
+        (insert-file-contents file))
+      (goto-char (point-min))
+      (unless (looking-at "\\([0-9.]+\\):\\([0-9]+\\)")
+        (error "%s does not begin with an address" file))
+      (let ((host (match-string 1))
+            (port (string-to-number (match-string 2))))
+        (forward-line 1)
+        (list (or revere-client-host host)
+              (or revere-client-port port)
+              (buffer-substring-no-properties (point) (line-end-position)))))))
+
+(defun revere-client--open (host port buffer)
+  "Connect to the daemon at HOST and PORT, with output going to BUFFER."
+  (if (not revere-client-tls)
+      (make-network-process :name "revere-client" :buffer buffer
+                            :host host :service port :family 'ipv4 :noquery t)
+    (require 'gnutls)
+    (require 'nsm)
+    (let ((gnutls-trustfiles (if revere-client-ca
+                                 (list (expand-file-name revere-client-ca))
+                               gnutls-trustfiles))
+          (gnutls-verify-error t)
+          (nsm-noninteractive t))
+      (open-network-stream
+       "revere-client" buffer host port
+       :type 'tls
+       :noquery t
+       :client-certificate (and revere-client-certificate
+                                (mapcar #'expand-file-name revere-client-certificate))))))
+
+(defun revere-client--answer ()
+  "The daemon's reply, read from the current buffer."
+  (goto-char (point-min))
+  (when (re-search-forward "\\(?:\\`\\|\n\\)-error " nil t)
+    (error "Revere daemon: %s"
+           (server-unquote-arg
+            (buffer-substring (point) (line-end-position)))))
+  (goto-char (point-min))
+  (let ((answer ""))
+    (while (re-search-forward "\\(?:\\`\\|\n\\)-print\\(-nonl\\)? " nil t)
+      (setq answer (concat answer (buffer-substring
+                                   (point)
+                                   (progn (skip-chars-forward "^\n") (point))))))
+    (unless (equal answer "")
+      (read (decode-coding-string (server-unquote-arg answer) 'emacs-internal)))))
+
+(defun revere-client--eval-over-tls (form)
+  "Evaluate FORM on the daemon over TLS, speaking the Emacs server protocol."
+  (pcase-let ((`(,host ,port ,key) (revere-client--credentials)))
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (let* ((coding-system-for-read 'binary)
+             (coding-system-for-write 'binary)
+             (process (revere-client--open host port (current-buffer))))
+        (unless process
+          (error "Cannot reach the Revere daemon at %s:%s" host port))
+        (unwind-protect
+            (let ((deadline (+ (float-time) revere-client-timeout)))
+              (process-send-string process (concat "-auth " key "\n"))
+              (process-send-string
+               process (concat "-eval " (server-quote-arg (format "%S" form)) " \n"))
+              (while (and (memq (process-status process) '(open run connect))
+                          (< (float-time) deadline))
+                (accept-process-output process 0.05))
+              (revere-client--answer))
+          (when (process-live-p process) (delete-process process)))))))
+
 (defun revere-client-eval (form)
   "Evaluate FORM on the daemon and return its value."
-  (let ((server-auth-dir (or revere-client-auth-dir server-auth-dir)))
-    (server-eval-at revere-client-server form)))
+  (if revere-client-tls
+      (revere-client--eval-over-tls form)
+    (let ((server-auth-dir (or revere-client-auth-dir server-auth-dir)))
+      (server-eval-at revere-client-server form))))
 
 ;;;###autoload
 (defun revere-client-new (prompt)

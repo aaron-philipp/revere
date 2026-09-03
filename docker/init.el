@@ -137,11 +137,18 @@
 ;; With TCP on, another Emacs on your network can drive this daemon with
 ;; revere-client, but anyone holding the auth file can evaluate anything
 ;; here.  Publish the port only on a network you trust.
+;; With REVERE_TLS on, stunnel holds the published port and Emacs listens
+;; only on the loopback inside this container, so the plaintext side is
+;; unreachable from outside and every caller has to pass the certificate
+;; check first.
 (when (revere-container-flag "REVERE_SERVER_TCP")
-  (setq server-use-tcp t
-        server-host "0.0.0.0"
-        server-auth-dir (expand-file-name "server" revere-config-directory)
-        server-port (string-to-number (revere-container-env "REVERE_SERVER_PORT" "9999")))
+  (let ((behind-tls (revere-container-flag "REVERE_TLS")))
+    (setq server-use-tcp t
+          server-host (if behind-tls "127.0.0.1" "0.0.0.0")
+          server-auth-dir (expand-file-name "server" revere-config-directory)
+          server-port (string-to-number
+                       (revere-container-env "REVERE_SERVER_PORT"
+                                             (if behind-tls "9998" "9999")))))
   (make-directory server-auth-dir t)
   (set-file-modes server-auth-dir #o700))
 
