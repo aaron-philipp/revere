@@ -2,15 +2,36 @@
 
 An agentic framework built on Emacs.
 
-You talk to it in a chat that sits beside your files. It reads and edits
-them in Emacs buffers, never on disk, and shows you each file as it works
-with the changed lines marked. When it stops, you keep or discard the
-changes: in the file itself, from the chat, or in one diff across every
-file it touched. It also runs on its own, on a schedule or from Discord,
-working on a git branch you merge when you're happy.
+Revere has the parts every agentic harness has: a model loop that calls
+tools until the work is done, a tool registry, skills, long-term memory
+with a nightly debrief, routines on a schedule, a board that jobs can be
+pinned to, subagents, MCP servers, approvals and rules, and channels such
+as Discord. It is built entirely from Emacs Lisp on a runtime that has
+been debugged for forty years, and that runtime is what sets it apart:
 
-Everything is Emacs Lisp on top of what Emacs already has: buffers, undo,
-diff-mode, ediff, Org, TRAMP, the server. The reasoning behind it is in
+- **It works in buffers, never on disk.** Edits land in Emacs buffers
+  with the changed lines marked, undo is the rollback, and diff-mode is
+  the review. You keep or discard in the file itself, from the chat, or
+  in one diff across everything it touched. Nothing reaches disk until
+  you say so.
+- **The chat drives the editor.** Every tool call in the transcript is a
+  link to the buffer, search, directory or shell output behind it. The
+  file being edited follows along in the main window, and the chat docks
+  to the side on its own once it has something to show.
+- **Org is the database.** The logbook, routines, board, memory and
+  check-in are Org files, so agenda, capture, search and version control
+  already work on them.
+- **It can see and change itself.** Every tool is an Emacs command, the
+  whole framework is inspectable with `describe-function`, and the model
+  can read its own source, define new tools at runtime, and advise its own
+  behaviour, all without a restart.
+- **One process, attended or not.** A headless `emacs --daemon` runs the
+  routines, the check-in and the Discord channel; you attach with
+  `emacsclient` to watch or take over. Unattended jobs run in git
+  worktrees you merge when you are happy.
+
+Everything sits on what Emacs already has: buffers, undo, diff-mode,
+ediff, Org, TRAMP, the server. The reasoning behind it is in
 [DESIGN.md](DESIGN.md).
 
 - [Requirements](#requirements)
