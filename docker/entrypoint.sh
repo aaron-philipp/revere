@@ -22,6 +22,9 @@ if [ "$(id -u)" = "0" ]; then
   fi
 
   chown -R revere:revere /home/revere "$SOCKET_DIR"
+  # Emacs refuses to put its socket in a directory others can reach, so
+  # this has to be 700, not merely unwritable by them.
+  chmod 700 "$SOCKET_DIR"
 
   # Not recursive on the volumes: they can be large, and on a mounted SMB
   # or NFS share ownership comes from the mount options and chown fails
@@ -60,7 +63,8 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 # Second pass, now as the run user.
-mkdir -p "$DATA" "$CONFIG" "$SERVERS/bin"
+mkdir -p "$DATA" "$CONFIG" "$SERVERS/bin" "$SOCKET_DIR"
+chmod 700 "$SOCKET_DIR"
 
 echo "revere: starting as $(id -un) ($(id -u):$(id -g))"
 echo "revere: config $CONFIG, data $DATA, servers $SERVERS"
