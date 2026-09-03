@@ -347,8 +347,10 @@ over `server-eval-at`.
 ### In a container
 
 `docker/` holds a Dockerfile and a compose file that run the daemon as a
-service, with Emacs, git, ripgrep and curl in the image. It is written for
-Synology Container Manager, and it is ordinary Docker everywhere else.
+service, with Emacs 31, git, ripgrep and curl in the image. GitHub Actions
+builds it, runs the test suite inside it, and publishes it, so the machine
+you deploy to compiles nothing. It is written for Synology Container
+Manager and is ordinary Docker everywhere else.
 [docker/README.md](docker/README.md) is the walkthrough.
 
 Four volumes, so the folder you edit is not the folder that churns:

@@ -1,0 +1,26 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: compile and test
+    runs-on: ubuntu-latest
+    # The same Emacs and the same tools the container ships, so a green
+    # run means it works where it is deployed.
+    container: debian:trixie-slim
+    steps:
+      - name: Install Emacs and what the tools shell out to
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            emacs-nox ca-certificates curl diffutils git ripgrep
+
+      - uses: actions/checkout@v4
+
+      - name: Compile with warnings as errors, then run the suite
+        run: bash bin/check.sh

@@ -1,28 +1,26 @@
 # Revere as a Synology Container Manager project.
 #
-# Container Manager: Project > Create, point it at the folder holding this
-# file, and it builds and starts the daemon.  Read docker/README.md first;
+# Put this file in /volume1/docker/revere, then Container Manager >
+# Project > Create and point it at that folder.  It pulls the image built
+# by GitHub Actions, so the NAS compiles nothing.  Read docker/README.md;
 # the lines you must change are marked EDIT.
 services:
   revere:
     container_name: revere
-    # Built from the repository above this folder.  To run a prebuilt image
-    # instead, comment the build block out and uncomment image.
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      args:
-        # MCP and ACP servers are usually node or python programs.  Turn on
-        # what yours need, or leave both off and mount servers that bring
-        # their own runtime.
-        WITH_NODE: "false"
-        WITH_PYTHON: "false"
-        # Empty uses Debian's Emacs 30.1 and builds in a couple of minutes.
-        # Set it to 31.1 to compile that release instead, which takes half
-        # an hour or so on NAS hardware but gives you a terminal frame with
-        # the mouse working, so the chat's tool lines are clickable.
-        EMACS_SOURCE: ""
-    # image: revere:latest
+    image: ghcr.io/aaron-philipp/revere:latest
+
+    # To build it here instead of pulling, comment out image above and
+    # uncomment this.  Container Manager wants the whole repository in the
+    # project folder for that, and EMACS_SOURCE compiles Emacs 31 in the
+    # container, which is slow on NAS hardware.
+    # build:
+    #   context: ..
+    #   dockerfile: docker/Dockerfile
+    #   args:
+    #     EMACS_SOURCE: "31.1"
+    #     WITH_NODE: "false"
+    #     WITH_PYTHON: "false"
+
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
@@ -31,15 +29,20 @@ services:
       # EDIT: your NAS timezone, or routines fire at the wrong hour.
       TZ: America/Chicago
 
-      # EDIT: the DSM user that owns the shared folder below.  The first
-      # DSM account is usually 1026 and the users group is 100; check over
-      # SSH with `id yourname`.
+      # EDIT: the DSM user that owns the folders below.  The first DSM
+      # account is usually 1026 and the users group is 100; check over SSH
+      # with `id yourname`.
       PUID: "1026"
       PGID: "100"
 
       # EDIT: your OpenAI-compatible endpoint, reachable from the NAS.
       REVERE_BASE_URL: "http://litellm.lan:4000"
       REVERE_MODEL: "qwen-3.8"
+
+      # The Emacs server on TCP, which is what the port below is for.  Set
+      # it to 0 if you will only ever attach from a shell on the NAS.
+      REVERE_SERVER_TCP: "1"
+      REVERE_SERVER_PORT: "9999"
 
       # Who the unattended commits come from.
       GIT_AUTHOR_NAME: "Revere"
@@ -50,33 +53,30 @@ services:
       # REVERE_DISCORD_USERS: "987654321098765432"
       # REVERE_DISCORD: "off"
 
-      # Let another Emacs on the LAN drive this daemon.  Read the warning
-      # in docker/README.md before turning this on.
-      # REVERE_SERVER_TCP: "1"
-      # REVERE_SERVER_PORT: "9999"
+    ports:
+      # The Emacs server, so another Emacs on your network can drive this
+      # daemon with revere-client.  Anyone who can reach this port and read
+      # config/server/revere can evaluate Lisp in it, which is a shell on
+      # your NAS: leave it on your LAN and never forward it at the router.
+      - "9999:9999"
 
     volumes:
-      # EDIT the /volume1 paths to your shared folder.  Making it a DSM
-      # shared folder is the point: everything below is then reachable over
-      # SMB, so you edit routines and instructions from your desk.
+      # DSM keeps container config and data under /volume1/docker.
       #
       # What you set: local.el, authinfo, prompt.md, your own skills.
-      - /volume1/revere/config:/config
+      - /volume1/docker/revere/config:/config
       # What it writes: logbook, routines, check-in, board, memory, and the
       # worktrees of unattended jobs.  This is the one to back up.
-      - /volume1/revere/data:/data
+      - /volume1/docker/revere/data:/data
       # MCP and ACP servers that are not in the image, plus their caches.
-      - /volume1/revere/servers:/servers
-      # EDIT: the projects it works on.  Append :ro to try it out
-      # read-only before you let it edit anything.
+      - /volume1/docker/revere/servers:/servers
+      # EDIT: the projects it works on, wherever your code lives.  Append
+      # :ro to try it out read-only before you let it edit anything.
       - /volume1/code:/work
 
-    # ports:
-    #   - "9999:9999"   # only with REVERE_SERVER_TCP
-
-# A share on another machine, rather than a folder on this NAS.  Replace
-# the four bind mounts above with named volumes like these, and set uid and
-# gid to the same numbers as PUID and PGID: ownership on an SMB mount comes
+# A share on another machine, rather than folders on this NAS.  Replace the
+# bind mounts above with named volumes like this one, and set uid and gid
+# to the same numbers as PUID and PGID: ownership on an SMB mount comes
 # from these options, and nothing in the container can chown it afterwards.
 #
 # volumes:

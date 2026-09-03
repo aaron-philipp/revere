@@ -12,3 +12,4 @@ docker/config
 docker/servers
 *.md
 !skills/**/*.md
+.github
