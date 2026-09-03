@@ -147,6 +147,17 @@
 
 ;;;; Your own settings
 
+;; Nothing else in this Emacs's home is worth keeping: the entrypoint
+;; writes .authinfo and .gitconfig fresh at every boot, and backups and
+;; auto-saves are scratch.  Customize is the exception.  Without this,
+;; saving from an attached frame would try to write into the image, which
+;; the user cannot write and the next update would throw away.
+(setq custom-file (expand-file-name "custom.el" revere-config-directory))
+(when (file-exists-p custom-file)
+  (condition-case err
+      (load custom-file nil t)
+    (error (message "revere: custom.el: %s" (error-message-string err)))))
+
 ;; Rules, MCP servers, routines, hooks: anything, and it wins over the
 ;; above.  Reload it without restarting the container:
 ;;   docker exec revere emacsclient -s /run/revere/revere \

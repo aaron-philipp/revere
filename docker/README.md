@@ -13,6 +13,7 @@ so Container Manager pulls it with no registry credentials.
 - [What you need](#what-you-need)
 - [Which Emacs](#which-emacs)
 - [The four folders](#the-four-folders)
+- [What is inside the container, and what survives](#what-is-inside-the-container-and-what-survives)
 - [Install](#install)
 - [Check it works](#check-it-works)
 - [Attaching](#attaching)
@@ -64,6 +65,37 @@ folder that churns.
 `/data` is the one to back up. `/config` is the one you edit. The `docker`
 shared folder is reachable over SMB like any other, so you can read the
 logbook and edit routines from your desk.
+
+## What is inside the container, and what survives
+
+Nothing in the container's own filesystem needs to be kept. Its Emacs home
+is `/home/revere`, and it is deliberately disposable:
+
+| In `/home/revere` | Where it comes from                                              |
+|-------------------|------------------------------------------------------------------|
+| `.authinfo`       | copied from `config/authinfo` at every boot, mode 600             |
+| `.gitconfig`      | written at every boot from `GIT_AUTHOR_NAME` and `GIT_AUTHOR_EMAIL` |
+| `.cache/backups`  | Emacs backups, kept off the share on purpose                      |
+| `.cache/auto-save`| Emacs auto-saves, likewise                                        |
+
+The daemon runs with `-Q`, so it never reads an init file from that home;
+its init is `/opt/revere/init.el` in the image, and `.emacs.d` holds only
+whatever Emacs incidentally caches. Revere writes nothing there: the
+logbook, routines, memory, board and worktrees are all on `/data`.
+
+The distinction that matters is restart versus replace. Restarting the
+container keeps its filesystem; pulling a new image replaces it, and
+anything not on a volume is gone. Since everything durable is on `/config`
+and `/data`, that is a rebuild rather than a loss. What you do lose on a
+replace is unsaved scratch: the backups and auto-saves above, and the
+prompt history in the minibuffer, which is per-process anyway. Kept work
+is already on disk and unattended work is already committed.
+
+One thing does need to persist, and does. `M-x customize` from an attached
+frame saves to `config/custom.el`, not into the image, so it survives an
+update. Settings are applied in three passes, each overriding the one
+before: the environment from the compose file, then `custom.el`, then
+`local.el`.
 
 ## Install
 
