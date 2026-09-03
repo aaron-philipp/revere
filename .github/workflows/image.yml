@@ -96,10 +96,19 @@ jobs:
             -v "$PWD/certs:/certs:ro" \
             -v "$PWD/config:/config" \
             revere:candidate
+          ready=""
           for i in $(seq 1 30); do
-            docker exec tls test -f /config/server/revere && break || sleep 1
+            if docker exec tls test -f /config/server/revere 2>/dev/null; then
+              ready=yes; break
+            fi
+            sleep 1
           done
-          docker exec tls test -f /config/server/revere
+          if [ -z "$ready" ]; then
+            echo "the TLS container never wrote its server file; its log:"
+            docker logs tls || true
+            docker rm -f tls || true
+            exit 1
+          fi
 
           echo "--- a caller with no certificate must be refused"
           if openssl s_client -connect 127.0.0.1:9999 -CAfile certs/ca.pem \

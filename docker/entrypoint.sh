@@ -59,6 +59,24 @@ if [ "$(id -u)" = "0" ]; then
     fi
   done
 
+  # The certificates arrive however they were copied: often mode 600 and
+  # owned by whoever made them, which the run user cannot read.  Root can,
+  # so take private copies the way authinfo is handled.
+  if [ "${REVERE_TLS:-0}" = "1" ] || [ "${REVERE_TLS:-off}" = "on" ]; then
+    CERTS="${REVERE_CERTS:-/certs}"
+    for f in server.pem ca.pem; do
+      if [ ! -r "$CERTS/$f" ]; then
+        echo "revere: REVERE_TLS is on but $CERTS/$f is missing or unreadable." >&2
+        echo "revere: make them with docker/make-certs.sh, then mount" >&2
+        echo "revere: ca.pem and server.pem at $CERTS." >&2
+        exit 1
+      fi
+    done
+    install -d -o revere -g revere -m 700 "$SOCKET_DIR/tls"
+    install -o revere -g revere -m 600 "$CERTS/server.pem" "$SOCKET_DIR/tls/server.pem"
+    install -o revere -g revere -m 600 "$CERTS/ca.pem" "$SOCKET_DIR/tls/ca.pem"
+  fi
+
   exec gosu revere "$0" "$@"
 fi
 
@@ -72,30 +90,28 @@ chmod 700 "$SOCKET_DIR"
 # a certificate signed by our authority is refused at the handshake, long
 # before it can offer Emacs a key.
 if [ "${REVERE_TLS:-0}" = "1" ] || [ "${REVERE_TLS:-off}" = "on" ]; then
-  CERTS="${REVERE_CERTS:-/certs}"
-  for f in "$CERTS/server.pem" "$CERTS/ca.pem"; do
-    if [ ! -r "$f" ]; then
-      echo "revere: REVERE_TLS is on but $f is missing." >&2
-      echo "revere: make them with docker/make-certs.sh and mount them at $CERTS." >&2
-      exit 1
-    fi
-  done
-  cat > "$SOCKET_DIR/stunnel.conf" <<EOF
+  STUNNEL="$(command -v stunnel || command -v stunnel4 || true)"
+  if [ -z "$STUNNEL" ]; then
+    echo "revere: REVERE_TLS is on but stunnel is not in this image." >&2
+    exit 1
+  fi
+  cat > "$SOCKET_DIR/tls/stunnel.conf" <<EOF
 foreground = yes
 pid =
 syslog = no
+output = /dev/stderr
 debug = 4
 [revere]
 accept = 0.0.0.0:${REVERE_TLS_PORT:-9999}
 connect = 127.0.0.1:${REVERE_SERVER_PORT:-9998}
-cert = $CERTS/server.pem
-CAfile = $CERTS/ca.pem
+cert = $SOCKET_DIR/tls/server.pem
+CAfile = $SOCKET_DIR/tls/ca.pem
 requireCert = yes
 verifyChain = yes
 sslVersionMin = TLSv1.2
 EOF
   echo "revere: TLS on ${REVERE_TLS_PORT:-9999}, clients must present a certificate"
-  stunnel "$SOCKET_DIR/stunnel.conf" &
+  "$STUNNEL" "$SOCKET_DIR/tls/stunnel.conf" &
 fi
 
 echo "revere: starting as $(id -un) ($(id -u):$(id -g))"
