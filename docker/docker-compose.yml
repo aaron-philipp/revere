@@ -17,6 +17,11 @@ services:
         # their own runtime.
         WITH_NODE: "false"
         WITH_PYTHON: "false"
+        # Empty uses Debian's Emacs 30.1 and builds in a couple of minutes.
+        # Set it to 31.1 to compile that release instead, which takes half
+        # an hour or so on NAS hardware but gives you a terminal frame with
+        # the mouse working, so the chat's tool lines are clickable.
+        EMACS_SOURCE: ""
     # image: revere:latest
     init: true
     restart: unless-stopped

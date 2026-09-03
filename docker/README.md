@@ -9,6 +9,7 @@ Everything it keeps lives in a DSM shared folder, so you edit its
 instructions and read its logbook over SMB from your desk.
 
 - [What you need](#what-you-need)
+  - [Which Emacs](#which-emacs)
 - [The four folders](#the-four-folders)
 - [Install](#install)
 - [Check it works](#check-it-works)
@@ -27,6 +28,21 @@ instructions and read its logbook over SMB from your desk.
 - SSH to the NAS for two commands. Everything else is DSM's web interface.
 
 Both Intel and ARM models work; the image builds on the NAS itself.
+
+### Which Emacs
+
+The image uses Debian's Emacs 30.1, which is past Revere's 29.1 floor and
+builds in a couple of minutes. Emacs 31.1 came out in August 2026 and is
+not packaged in any Debian release yet, so to run it here you build it:
+set `EMACS_SOURCE: "31.1"` in the compose file. That adds half an hour or
+so to the first build on NAS hardware and nothing afterwards, and it
+installs over the packaged one.
+
+It is worth it for one reason. Emacs 31 enables mouse support in terminal
+frames by default, and a terminal frame is how you attach to this
+container, so the chat's tool lines and change buttons become clickable
+rather than keyboard-only. When Debian packages 31, clear the setting and
+the plain build gets it.
 
 ## The four folders
 

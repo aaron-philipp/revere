@@ -3,9 +3,41 @@
 #
 #   docker build -f docker/Dockerfile -t revere:latest .
 #
-# Debian 13 carries Emacs 30, past Revere's 29.1 floor, on amd64 and arm64,
-# which covers both Intel and ARM Synology models.
+# Debian 13 carries Emacs 30.1, past Revere's 29.1 floor, on amd64 and
+# arm64, which covers both Intel and ARM Synology models.  Emacs 31.1 is
+# too new to be packaged anywhere in Debian yet, so to run it here you
+# build it: set EMACS_SOURCE to 31.1 and it is compiled and installed over
+# the packaged one.  That costs half an hour or so on NAS hardware, once.
+# Worth it for one reason in particular: 31 turns on mouse support in
+# terminal frames by default, and a terminal frame is how you attach to
+# this container, so the chat's tool lines become clickable.
+ARG EMACS_SOURCE=""
+
+FROM debian:trixie-slim AS emacs
+ARG EMACS_SOURCE
+RUN set -eux; \
+    mkdir -p /out/usr/local; \
+    if [ -n "$EMACS_SOURCE" ]; then \
+      apt-get update; \
+      apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl xz-utils pkg-config texinfo \
+        libgnutls28-dev libncurses-dev libsqlite3-dev libxml2-dev zlib1g-dev; \
+      curl -fsSL "https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_SOURCE}.tar.xz" \
+        -o /tmp/emacs.tar.xz; \
+      mkdir -p /tmp/emacs && tar -xJf /tmp/emacs.tar.xz -C /tmp/emacs --strip-components=1; \
+      cd /tmp/emacs; \
+      ./configure --prefix=/usr/local \
+        --without-x --with-x-toolkit=no --without-sound \
+        --with-gnutls --with-sqlite3 \
+        --without-native-compilation --without-tree-sitter \
+        --without-gpm --without-dbus --without-selinux; \
+      make -j"$(nproc)"; \
+      make install DESTDIR=/out; \
+      rm -rf /tmp/emacs /tmp/emacs.tar.xz; \
+    fi
+
 FROM debian:trixie-slim
+ARG EMACS_SOURCE
 
 # Add the runtimes MCP and ACP servers are usually written in.  Off by
 # default: the image stays small and you mount servers that bring their
@@ -35,6 +67,13 @@ RUN apt-get update \
  && if [ "$WITH_PYTHON" = "true" ]; then \
       apt-get install -y --no-install-recommends python3 python3-venv pipx; fi \
  && rm -rf /var/lib/apt/lists/*
+
+# The packaged Emacs above brings the libraries either build needs.  A
+# source build lands in /usr/local, which comes first on PATH, so it is the
+# one that runs; with EMACS_SOURCE unset this copies an empty directory and
+# the packaged Emacs stands.
+COPY --from=emacs /out/usr/local /usr/local
+RUN emacs --version | head -1
 
 # websocket is Revere's only Elisp dependency, and only Discord uses it.
 # Installing it at build time keeps the container off the network at boot.
